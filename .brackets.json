@@ -1,0 +1,7 @@
+{
+    "jscodehints.detectedExclusions": [
+        "/Users/daniel/Desktop/swipeStats/swipeStats/bower_components/ionic-contrib-tinder-cards/ionic.tdcards.js",
+        "/Users/daniel/Desktop/swipeStats/swipeStats/bower_components/ionic-contrib-tinder-cards/example/www/lib/js/ionic.min.js",
+        "/Users/daniel/Desktop/swipeStats/swipeStats/bower_components/ionic-contrib-tinder-cards/example/www/lib/js/ionic.js"
+    ]
+}
