@@ -10,6 +10,17 @@ var url = 'mongodb://localhost:27017/SWIPE_SECRETS';
 app.use(express.static('app'));
 
 // perhaps move all this init param stuff to separate script to only run once.
+// also to clean up, another module just for init
+// Clear database on first boot to avoid duplicate entries
+MongoClient.connect(url,function(err,db) {
+    assert.equal(null,err);
+    db.dropDatabase(function(err,result) {
+        assert.equal(err,null);
+        console.log("Cleared database on initialization");
+        db.close(result);
+    });
+});
+
 // Insert test new prop and session docs for init
 var testNewProp = {
     "_id": '1', 
@@ -94,8 +105,23 @@ MongoClient.connect(url,function(err,db) {
 
 // Set up routes used by front end
 app.get('/init', function(request,response){
-    var params = {sessionID: 1, numProps: 5};
-    response.json(params);
+    MongoClient.connect(url,function(err,db) {
+        assert.equal(null,err);
+        var cursor = db.collection('meta_data').find({"_id": 1});
+        cursor.each(function(err, doc) {
+            assert.equal(err, null);
+            if (doc != null) {
+                var newNumSessions = doc.numSessions + 1;
+                var params = {sessionID: newNumSessions, numProps: doc.numProps};
+                response.json(params);
+                db.collection('meta_data').updateOne(
+                    {"_id": 1},
+                    {$set: {"numSessions": newNumSessions}});
+            } else {
+                db.close();
+            }
+        });
+    });
 });
 
 app.post('/new_proposition', jsonencode, function(request,response){
@@ -107,15 +133,28 @@ app.post('/prediction', jsonencode, function(request,response){
 });
 
 app.post('/new_choice', jsonencode, function(request,response){
+    var sessionID = parseInt(request.body.sessionID);
+    var choice = parseInt(request.body.choice);
+    var propArray = request.body.proposition;
+    var propImage = propArray.split('/')[2];
+    var propositionID = parseInt(propImage.substr(4,propImage.length-8));
+    
+    MongoClient.connect(url,function(err,db) {
+        assert.equal(null,err);
+        db.collection('sessions').updateOne(
+            {"_id": sessionID},
+            {$push: {"propositions": propositionID}});
+             
+        db.collection('sessions').updateOne(
+            {"_id": sessionID},
+            {$push: {"choices": choice}},function(err, results) {
+                db.close();
+        });
+    });    
+    
     response.sendStatus(201);
 });
 // when session closes, if fewer than n entries, perhaps delete session
-
-
-
-
-
-
 
 module.exports = app;
 
