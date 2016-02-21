@@ -49,12 +49,14 @@ MongoClient.connect(url,function(err,db) {
 var session1 = {
     "_id": 1,
     "propositions": [1,2],
-    "choices": [0,1]
+    "choices": [0,1],
+    "indices": [1,4]
 };
 var session2 = {
     "_id": 2,
     "propositions": [2,4],
-    "choices": [1,1]
+    "choices": [1,1],
+    "indices": [4,8]
 };
 
 var insertNewDocInSessions = function(db,data,callback) {
@@ -82,7 +84,7 @@ MongoClient.connect(url,function(err,db) {
 var metaData = {
     "_id": 1,
     "numProps": 6,
-    "numSessions": 0
+    "numSessions": 2
 };
 
 
@@ -102,6 +104,12 @@ MongoClient.connect(url,function(err,db) {
 });
 
 
+// Note: Due to Chrome standard operating procedure, calls are made at multiplie
+// points in the website load, eg first character for autofill, completing autofill
+// and entering on autofill. As such there are multiple calls to the init route, which
+// create unused sessions before the final one that is used. Should have some kind of
+// job on the server which routinely clears out sessions with no entries. Or find a 
+// better way to deal with this problem.
 
 // Set up routes used by front end
 app.get('/init', function(request,response){
@@ -110,15 +118,26 @@ app.get('/init', function(request,response){
         var cursor = db.collection('meta_data').find({"_id": 1});
         cursor.each(function(err, doc) {
             assert.equal(err, null);
-            if (doc != null) {
+            if (doc !== null) {
                 var newNumSessions = doc.numSessions + 1;
                 var params = {sessionID: newNumSessions, numProps: doc.numProps};
                 response.json(params);
                 db.collection('meta_data').updateOne(
                     {"_id": 1},
                     {$set: {"numSessions": newNumSessions}});
+                var newSessionData = {
+                    "_id": newNumSessions,
+                    "propositions": [],
+                    "choices": [],
+                    "indices": []
+                };    
+                db.collection('sessions').insertOne(newSessionData,function(err,result) {
+                    assert.equal(err,null);
+                    console.log("Inserted new session into collection session");
+                    db.close();
+                });   
             } else {
-                db.close();
+                
             }
         });
     });
@@ -129,7 +148,58 @@ app.post('/new_proposition', jsonencode, function(request,response){
 });
 
 app.post('/prediction', jsonencode, function(request,response){
-    response.send('+4 to genius you suave nerd baller you on session: ' + request.body.sessionID);
+
+    
+    // Get set of all choices (vertices in graph)
+    // Perform mongodb search on all sessions, grabbing every set that has a
+    // match of at least one to the current set.
+    // Iterate through every session
+    //  - compute multiplier based on number of matches to current set 
+    //  - for every set with match, multiply each other non original member by multiplier
+    //    and push onto mongodb collection "bucket", with id of vertex, and +1 to current value
+    //  - at end return bucket entry with highest number of values
+
+
+
+      
+
+    MongoClient.connect(url,function(err, db) {
+        assert.equal(null,err); 
+        var choices = db.collection('sessions').find( { "_id": parseInt(request.body.sessionID) } );
+        choices.each(function(err,doc) {
+            if (doc !== null) {
+                var relatedChoices = db.collection('sessions').find( 
+                    {"indices": 
+                        { $elemMatch: { $in: doc.indices }}});
+                        
+                relatedChoices.each(function(err,doc2) {
+                    if (doc2 !== null) {
+                        console.log(doc2); 
+                        
+                        
+                    } else {
+                        db.close();
+                    }
+                });
+            } else {
+  
+            }
+            
+        });  
+        //cursor.each(function(err, doc) {
+        //    assert.equal(err, null);
+        //    if (doc != null) {
+        //        console.dir(doc);
+        //    } else {
+        //        callback();
+        //    }
+        //});  
+
+    });    
+
+    
+    response.send('+4 to genius you suave nerd baller you on session: ' + request.body.sessionID);    
+    
 });
 
 app.post('/new_choice', jsonencode, function(request,response){
@@ -144,10 +214,14 @@ app.post('/new_choice', jsonencode, function(request,response){
         db.collection('sessions').updateOne(
             {"_id": sessionID},
             {$push: {"propositions": propositionID}});
-             
+ 
         db.collection('sessions').updateOne(
             {"_id": sessionID},
-            {$push: {"choices": choice}},function(err, results) {
+            {$push: {"choices": choice}});
+        var index = 2 * (propositionID - 1) + 1 + choice;     
+        db.collection('sessions').updateOne(
+            {"_id": sessionID},
+            {$push: {"indices": index}},function(err, results) {
                 db.close();
         });
     });    
@@ -157,4 +231,5 @@ app.post('/new_choice', jsonencode, function(request,response){
 // when session closes, if fewer than n entries, perhaps delete session
 
 module.exports = app;
+
 
