@@ -3,12 +3,7 @@
 		<a><img style="width:100%" id="followbutton" ng-src="{{propositionPath}}" class="slide slide-animation nonDraggableImage"
          ng-swipe-right="propositionClicked(1)" ng-swipe-left="propositionClicked(0)"/></a>
 	</div> -->
-  <div ng-controller='mainController' id="ModalDiv">
-    <modal-dialog show='modalShown' width='400px' height='60%'>
-     <p>You'll like this proposition, choice <b>{{propChoice}}</b></p>
-     <img class="pred-img" src="{{predContent}}" width="85%" height="85%">
-    </modal-dialog>
-  </div>
+
 <div class="row">
 		<a class="button btn-primary" type="button" ng-click="propositionClicked(0)" value="Left">Left</a>
 		<a class="button btn-primary" type="button" ng-click="propositionClicked(1)" value="Right">Right</a> 
@@ -29,14 +24,14 @@
                 {{card.title}}
             </div>
             <div class="image">
-               <div class="no-text overlayBox">
-                 <div class="yesBox boxed">Left</div>
-               </div>
-               <img ng-src="{{card.image}}">
-               <div class="yes-text overlayBox">
-                 <div class="noBox boxed">Right</div>
-               </div>
-           </div>
+                <div class="no-text overlayBox">
+                  <div class="noBox boxed">Trash</div>
+                </div>
+                <img ng-src="{{card.image}}">
+                <div class="yes-text overlayBox">
+                  <div class="yesBox boxed" id="centerMe">Save</div>
+                </div>
+            </div>
         </td-card>
     </td-cards>
   </div>	

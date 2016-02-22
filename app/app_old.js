@@ -27,7 +27,6 @@ app.run(function($rootScope, $http, $q){
     $rootScope.deferTill=$q.defer();
     $rootScope.sessionID = 0;
     $rootScope.numProps = 0;
-    $rootScope.firstLoad = true;
     $rootScope.propsShown = [];
     $rootScope.nextPropPath='';
     $rootScope.cards = [];
@@ -97,21 +96,9 @@ app.controller('introDivController', function($scope) {
     $scope.hideIntro = false;
 });
     
-app.controller('mainController', function($http, $scope,$stateParams,$state, $rootScope) {   
-    if($rootScope.firstLoad){
-        $scope.modalShown = false;
-        $rootScope.firstLoad = false;
-    }
-    $scope.toggleModal = function(prediction) {
-      if(prediction.choice === 0){
-          $scope.propChoice = 'LEFT';
-      }
-      else{
-          $scope.propChoice = 'RIGHT';
-      }
-      $scope.predContent = 'images/prop' + prediction.proposition  + '.jpg';
-      $scope.modalShown = true;
-    };
+app.controller('mainController', function($http, $scope,$stateParams,$state, $rootScope) {    
+
+
 
     //The swipe needs to swipe the whole div, not just 1 img (in case the proposition is made of 2 images)
 
@@ -130,7 +117,7 @@ app.controller('mainController', function($http, $scope,$stateParams,$state, $ro
         //1) update URL
         $scope.propositionPath = '/images/prop' + $stateParams.propID_urlParam + '.jpg';
         //2) only add the card if there are no cards at all
-        if ($rootScope.cards.length===0){
+        if ($rootScope.cards.length==0){
             $rootScope.addCard($scope.propositionPath,$scope.propositionPath);
         }
         //pick the next prop to show in the stack, make sure it wasn't picked before nor the current one being shown
@@ -146,6 +133,8 @@ app.controller('mainController', function($http, $scope,$stateParams,$state, $ro
             $rootScope.nextPropPath=$scope.propositionPath;
         }
         $rootScope.addCard($rootScope.nextPropPath,$rootScope.nextPropPath);
+    
+
 
         // Define click function
         $scope.propositionClicked = function(choice){
@@ -157,11 +146,11 @@ app.controller('mainController', function($http, $scope,$stateParams,$state, $ro
                  alert(msg);
              });
             // get prediction every n choices
-            if ($rootScope.propsShown.length % 2 === 0 && $rootScope.propsShown.length>0) {
-                $http.post('/prediction',{sessionID: $scope.sessionID}).
-                success(function(prediction) {
-                  $scope.toggleModal(prediction);
-                });
+            if ($rootScope.propsShown.length % 2 == 0 && $rootScope.propsShown.length>0) {
+              $http.post('/prediction',{sessionID: $scope.sessionID}).
+                success(function(msg) {
+                  alert(msg);
+                }).
                 error(function(msg) {
                   alert(msg);
                 });
@@ -245,27 +234,7 @@ app.controller('submitController', function($http,$scope,$stateParams,$state) {
 });
 
 
-app.directive('modalDialog', function() {
-  return {
-    restrict: 'E',
-    scope: {
-      show: '='
-    },
-    replace: true, // Replace with the template below
-    transclude: true, // we want to insert custom content inside the directive
-    link: function(scope, element, attrs) {
-      scope.dialogStyle = {};
-      if (attrs.width)
-        scope.dialogStyle.width = attrs.width;
-      if (attrs.height)
-        scope.dialogStyle.height = attrs.height;
-      scope.hideModal = function() {
-        scope.show = false;
-      };
-    },
-    template: "<div class='ng-modal' ng-show='show'><div class='ng-modal-overlay' ng-click='hideModal()'></div><div class='ng-modal-dialog' ng-style='dialogStyle'><div class='ng-modal-close' ng-click='hideModal()'>X</div><div class='ng-modal-dialog-content' ng-transclude></div></div></div>"
-  };
-});
+
 
 app.controller('BodyController', function($http, $scope, $stateParams,$state) {
     // Initialize App Variables
