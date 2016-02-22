@@ -103,6 +103,25 @@ MongoClient.connect(url,function(err,db) {
      });
 });
 
+// Sorts each matching session into appropriate buckets
+var processMatch = function(buckets,currentSession,matchSession) {
+    var multiplier = 0;
+    currentSession.forEach(function(choice) {
+        multiplier = matchSession.indexOf(choice) > -1 ? multiplier+1 : multiplier;
+    });
+    console.log("Mutiplier for match: " + multiplier);
+    
+    matchSession.forEach(function(choice) {
+        if (currentSession.indexOf(choice) == -1) {
+            choiceStr = choice.toString();
+            if (choiceStr in buckets) {
+                buckets[choiceStr] =  buckets[choiceStr] + multiplier * 1;
+            } else {
+                buckets[choiceStr] =  multiplier * 1;
+            }
+        }
+    });
+};
 
 // Note: Due to Chrome standard operating procedure, calls are made at multiplie
 // points in the website load, eg first character for autofill, completing autofill
@@ -158,48 +177,51 @@ app.post('/prediction', jsonencode, function(request,response){
     //  - for every set with match, multiply each other non original member by multiplier
     //    and push onto mongodb collection "bucket", with id of vertex, and +1 to current value
     //  - at end return bucket entry with highest number of values
-
-
-
-      
-
+    // On second thought, perhaps don't read/write to database, time costly
+    
+    var buckets = {}; // using object for prototype, in production should use hash table or redis
+    
     MongoClient.connect(url,function(err, db) {
         assert.equal(null,err); 
+         
         var choices = db.collection('sessions').find( { "_id": parseInt(request.body.sessionID) } );
         choices.each(function(err,doc) {
             if (doc !== null) {
+                console.log("Current session: \n" + JSON.stringify(doc));
                 var relatedChoices = db.collection('sessions').find( 
                     {"indices": 
                         { $elemMatch: { $in: doc.indices }}});
-                        
-                relatedChoices.each(function(err,doc2) {
+      
+                relatedChoices.each(function(err,doc2, callback) {
+                    
                     if (doc2 !== null) {
-                        console.log(doc2); 
                         
-                        
+                        if (doc._id != doc2._id) {
+                            console.log("Matching sessions: \n" + JSON.stringify(doc2));
+                            processMatch(buckets, doc.indices, doc2.indices);
+                            console.log(buckets);
+                        }
                     } else {
                         db.close();
+                        console.log(buckets);
+                        // hacky way to find max, O(n) time, perhaps can improve with clever storing
+                        var max = -Infinity, x, prop = '1';
+                        for( x in buckets) {
+                            if( buckets[x] > max) {
+                                max = buckets[x];
+                                prop = x;
+                            }
+                        }  
+                        var propNum = Math.ceil((parseInt(prop)) / 2) ;
+                        var choice = parseInt(prop) % 2 == 0 ? 1 : 0;
+                        var prediction = {proposition: propNum, choice: choice};
+                        response.json(prediction);
                     }
                 });
             } else {
-  
             }
-            
         });  
-        //cursor.each(function(err, doc) {
-        //    assert.equal(err, null);
-        //    if (doc != null) {
-        //        console.dir(doc);
-        //    } else {
-        //        callback();
-        //    }
-        //});  
-
     });    
-
-    
-    response.send('+4 to genius you suave nerd baller you on session: ' + request.body.sessionID);    
-    
 });
 
 app.post('/new_choice', jsonencode, function(request,response){
